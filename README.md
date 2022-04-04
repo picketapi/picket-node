@@ -1,4 +1,4 @@
-# **picket-node **
+# picket-node
 
 NodeJS client for the Picket API
 
