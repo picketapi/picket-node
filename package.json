@@ -1,0 +1,36 @@
+{
+  "name": "@picketapi/picket-node",
+  "version": "0.0.1",
+  "description": "NodeJS client for the Picket API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "npx swc index.ts -d dist && npx tsc",
+    "build-verify": "npm run build && node dist/index.js",
+    "prepare": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/picketapi/picket-node.git"
+  },
+  "author": "picket",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/picketapi/picket-node/issues"
+  },
+  "homepage": "https://github.com/picketapi/picket-node#readme",
+  "dependencies": {
+    "typescript": "^4.6.2"
+  },
+  "devDependencies": {
+    "@swc/cli": "^0.1.55",
+    "@swc/core": "^1.2.154",
+    "@types/node": "^17.0.23"
+  },
+  "keywords": [
+    "web3",
+    "authentication"
+  ]
+}
