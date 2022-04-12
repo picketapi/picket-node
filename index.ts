@@ -3,32 +3,62 @@ import { Buffer } from "buffer";
 export const API_VERSION = "v1";
 const BASE_API_URL = `https://www.picketapi.com/api/${API_VERSION}`;
 
+export interface ErrorResponse {
+  code?: string;
+  msg: string;
+}
+
 export interface NonceResponse {
   nonce: string;
 }
 
 export interface AuthRequirements {
   contractAddress?: string;
-  minTokenBalance?: number;
+  minTokenBalance?: number | string;
 }
 
-export interface AuthRequest extends AuthRequirements {
+export interface AuthRequest {
   walletAddress: string;
   signature: string;
+  requirements?: AuthRequirements;
 }
 
 export interface TokenOwnershipRequest {
   walletAddress: string;
   contractAddress: string;
-  minTokenBalance?: number;
+  minTokenBalance?: number | string;
 }
 
-export interface OwnershipResponse {
+export interface TokenOwnershipResponse {
   allowed: boolean;
+  walletAddress: string;
+  tokenBalance: string;
+}
+
+export interface AuthenticatedUser {
+  walletAddress: string;
+  displayAddress: string;
+  contractAddress?: string;
+  tokenBalance?: string;
 }
 
 export interface AuthResponse {
   accessToken: string;
+  user: AuthenticatedUser;
+}
+
+export interface AuthState {
+  accessToken: string;
+  user: AuthenticatedUser;
+}
+
+export interface AccessTokenPayload extends AuthenticatedUser {
+  iat: number;
+  ext: number;
+  iss: string;
+  sub: string;
+  aud: string;
+  tid: string;
 }
 
 export class Picket {
@@ -46,6 +76,7 @@ export class Picket {
     const base64SecretKey = Buffer.from(this.#apiKey).toString("base64");
 
     return {
+      "User-Agent": "picket-node/0.0.1",
       "Content-Type": "application/json",
       Authorization: `Basic ${base64SecretKey}`,
     };
@@ -63,23 +94,29 @@ export class Picket {
     const url = `${this.baseURL}/auth/nonce`;
     const res = await fetch(url, {
       method: "POST",
-      headers: this.#defaultHeaders(),
+      headers: { ...this.#defaultHeaders },
       body: JSON.stringify({
         walletAddress,
       }),
     });
-    return await res.json();
+    const data = await res.json();
+
+    // reject any error code > 201
+    if (res.status > 201) {
+      return Promise.reject(data);
+    }
+
+    return data as NonceResponse;
   }
 
   /**
-   * Auth
+   * auth
    * Function for initiating auth / token gating
    */
   async auth({
     walletAddress,
     signature,
-    contractAddress,
-    minTokenBalance,
+    requirements,
   }: AuthRequest): Promise<AuthResponse> {
     if (!walletAddress) {
       throw new Error(
@@ -92,17 +129,58 @@ export class Picket {
       );
     }
 
-    const requestBody = Boolean(contractAddress)
-      ? { walletAddress, signature, contractAddress, minTokenBalance }
-      : { walletAddress, signature };
     const url = `${this.baseURL}/auth`;
     const reqOptions = {
       method: "POST",
-      headers: this.#defaultHeaders(),
-      body: JSON.stringify(requestBody),
+      headers: { ...this.#defaultHeaders },
+      body: JSON.stringify({
+        walletAddress,
+        signature,
+        requirements,
+      }),
     };
+
     const res = await fetch(url, reqOptions);
-    return await res.json();
+    const data = await res.json();
+
+    // reject any error code > 201
+    if (res.status > 201) {
+      return Promise.reject(data as ErrorResponse);
+    }
+
+    return data as AuthResponse;
+  }
+
+  /**
+   * Validate
+   * Validate the given access token and requirements
+   */
+  async validate(
+    accessToken: string,
+    requirements?: AuthRequirements
+  ): Promise<AccessTokenPayload> {
+    if (!accessToken) {
+      return Promise.reject("access token is empty");
+    }
+
+    const url = `${this.baseURL}/auth/validate`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { ...this.#defaultHeaders },
+      body: JSON.stringify({
+        accessToken,
+        requirements,
+      }),
+    });
+
+    const data = await res.json();
+
+    // reject any error code > 201
+    if (res.status > 201) {
+      return Promise.reject(data as ErrorResponse);
+    }
+
+    return data as AccessTokenPayload;
   }
 
   /**
@@ -113,7 +191,7 @@ export class Picket {
     walletAddress,
     contractAddress,
     minTokenBalance,
-  }: TokenOwnershipRequest): Promise<OwnershipResponse> {
+  }: TokenOwnershipRequest): Promise<TokenOwnershipResponse> {
     if (!walletAddress) {
       throw new Error(
         "walletAddress parameter is required - see docs for reference."
@@ -125,7 +203,7 @@ export class Picket {
       );
     }
 
-    const requestBody = { walletAddress, contractAddress, minTokenBalance };
+    const requestBody = { contractAddress, minTokenBalance };
     const url = `${this.baseURL}/wallets/${walletAddress}/tokenOwnership`;
     const reqOptions = {
       method: "POST",
@@ -133,27 +211,14 @@ export class Picket {
       body: JSON.stringify(requestBody),
     };
     const res = await fetch(url, reqOptions);
-    // TODO HANDLE ERROR CODES
+    const data = await res.json();
 
-    return await res.json();
-  }
+    // reject any error code > 201
+    if (res.status > 201) {
+      return Promise.reject(data as ErrorResponse);
+    }
 
-  /**
-   * Verify
-   * Function for initiating auth / token gating
-   */
-  async verify(jwt: string): Promise<boolean> {
-    if (!jwt) return false;
-
-    const url = `${this.baseURL}/auth/verify`;
-
-    const res = await fetch(url, {
-      headers: this.#defaultHeaders(),
-    });
-
-    const { valid }: { valid: boolean } = await res.json();
-
-    return valid;
+    return data as TokenOwnershipResponse;
   }
 }
 
