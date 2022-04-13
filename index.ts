@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
 
 export const API_VERSION = "v1";
-const BASE_API_URL = `https://www.picketapi.com/api/${API_VERSION}`;
+const BASE_API_URL = `https://picketapi.com/api/${API_VERSION}`;
 
 export interface ErrorResponse {
   code?: string;
