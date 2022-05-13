@@ -3,9 +3,19 @@ import { Buffer } from "buffer";
 export const API_VERSION = "v1";
 const BASE_API_URL = `https://picketapi.com/api/${API_VERSION}`;
 
+export enum Chain {
+  ETH = "ethereum",
+  SOL = "solana",
+}
+
 export interface ErrorResponse {
   code?: string;
   msg: string;
+}
+
+export interface NonceRequest {
+  chain: Chain;
+  walletAddress: string;
 }
 
 export interface NonceResponse {
@@ -18,6 +28,7 @@ export interface AuthRequirements {
 }
 
 export interface AuthRequest {
+  chain: Chain;
   walletAddress: string;
   signature: string;
   requirements?: AuthRequirements;
@@ -36,6 +47,7 @@ export interface TokenOwnershipResponse {
 }
 
 export interface AuthenticatedUser {
+  chain: Chain;
   walletAddress: string;
   displayAddress: string;
   contractAddress?: string;
@@ -76,7 +88,7 @@ export class Picket {
     const base64SecretKey = Buffer.from(this.#apiKey).toString("base64");
 
     return {
-      "User-Agent": "picket-node/0.0.1",
+      "User-Agent": "picket-node/0.0.4",
       "Content-Type": "application/json",
       Authorization: `Basic ${base64SecretKey}`,
     };
@@ -90,12 +102,16 @@ export class Picket {
    * nonce
    * Function for retrieving nonce for a given user
    */
-  async nonce(walletAddress: string): Promise<NonceResponse> {
+  async nonce({
+    chain = Chain.ETH,
+    walletAddress,
+  }: NonceRequest): Promise<NonceResponse> {
     const url = `${this.baseURL}/auth/nonce`;
     const res = await fetch(url, {
       method: "POST",
       headers: this.#defaultHeaders(),
       body: JSON.stringify({
+        chain,
         walletAddress,
       }),
     });
@@ -114,6 +130,7 @@ export class Picket {
    * Function for initiating auth / token gating
    */
   async auth({
+    chain = Chain.ETH,
     walletAddress,
     signature,
     requirements,
@@ -134,6 +151,7 @@ export class Picket {
       method: "POST",
       headers: this.#defaultHeaders(),
       body: JSON.stringify({
+        chain,
         walletAddress,
         signature,
         requirements,
