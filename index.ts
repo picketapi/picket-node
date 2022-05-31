@@ -26,6 +26,7 @@ export interface NonceResponse {
 
 export interface AuthRequirements {
   contractAddress?: string;
+  tokenIds?: string[];
   minTokenBalance?: number | string;
 }
 
@@ -37,8 +38,10 @@ export interface AuthRequest {
 }
 
 export interface TokenOwnershipRequest {
+  chain?: Chain;
   walletAddress: string;
   contractAddress: string;
+  tokenIds?: string[];
   minTokenBalance?: number | string;
 }
 
@@ -53,6 +56,7 @@ export interface AuthenticatedUser {
   walletAddress: string;
   displayAddress: string;
   contractAddress?: string;
+  tokenIds?: string;
   tokenBalance?: string;
 }
 
@@ -208,7 +212,9 @@ export class Picket {
    * Function for initiating auth / token gating
    */
   async tokenOwnership({
+    chain = Chains.ETH,
     walletAddress,
+    tokenIds,
     contractAddress,
     minTokenBalance,
   }: TokenOwnershipRequest): Promise<TokenOwnershipResponse> {
@@ -217,14 +223,19 @@ export class Picket {
         "walletAddress parameter is required - see docs for reference."
       );
     }
-    if (!contractAddress) {
+    if (chain === Chains.ETH && !contractAddress) {
       throw new Error(
-        "contractAddress parameter is required - see docs for reference."
+        `contractAddress parameter is required for ${Chains.ETH}- see docs for reference.`
+      );
+    }
+    if (chain === Chains.SOL && !tokenIds) {
+      throw new Error(
+        `tokenIds parameter is required for ${Chains.SOL} - see docs for reference.`
       );
     }
 
-    const requestBody = { contractAddress, minTokenBalance };
-    const url = `${this.baseURL}/wallets/${walletAddress}/tokenOwnership`;
+    const requestBody = { contractAddress, minTokenBalance, tokenIds };
+    const url = `${this.baseURL}/chains/${chain}/wallets/${walletAddress}/tokenOwnership`;
     const reqOptions = {
       method: "POST",
       headers: this.#defaultHeaders(),
