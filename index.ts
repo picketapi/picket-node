@@ -230,7 +230,7 @@ export class Picket {
     }
     if (chain === Chains.SOL && !tokenIds) {
       throw new Error(
-        `tokenId parameter is required for ${Chains.SOL} - see docs for reference.`
+        `tokenIds parameter is required for ${Chains.SOL} - see docs for reference.`
       );
     }
 
