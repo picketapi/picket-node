@@ -3,20 +3,29 @@ import { Buffer } from "buffer";
 export const API_VERSION = "v1";
 const BASE_API_URL = `https://picketapi.com/api/${API_VERSION}`;
 
-export enum Chains {
-  ETH = "ethereum",
-  SOL = "solana",
-}
-
-export type Chain = `${Chains}`;
-
 export interface ErrorResponse {
   code?: string;
   msg: string;
 }
 
+export enum ChainTypes {
+  ETH = "ethereum",
+  SOL = "solana",
+}
+
+export type ChainType = `${ChainTypes}`;
+
+export type ChainInfo = {
+  chainSlug: string;
+  chainID: number;
+  chainType: ChainTypes;
+  chainName: string;
+  publicRPC: string;
+  authorizationSupported: boolean;
+};
+
 export interface NonceRequest {
-  chain: Chain;
+  chain: string;
   walletAddress: string;
 }
 
@@ -31,14 +40,14 @@ export interface AuthRequirements {
 }
 
 export interface AuthRequest {
-  chain: Chain;
+  chain: string;
   walletAddress: string;
   signature: string;
   requirements?: AuthRequirements;
 }
 
 export interface TokenOwnershipRequest {
-  chain?: Chain;
+  chain?: string;
   walletAddress: string;
   contractAddress: string;
   tokenIds?: string[];
@@ -52,7 +61,7 @@ export interface TokenOwnershipResponse {
 }
 
 export interface AuthenticatedUser {
-  chain: Chain;
+  chain: string;
   walletAddress: string;
   displayAddress: string;
   contractAddress?: string;
@@ -109,7 +118,7 @@ export class Picket {
    * Function for retrieving nonce for a given user
    */
   async nonce({
-    chain = Chains.ETH,
+    chain = ChainTypes.ETH,
     walletAddress,
   }: NonceRequest): Promise<NonceResponse> {
     const url = `${this.baseURL}/auth/nonce`;
@@ -136,7 +145,7 @@ export class Picket {
    * Function for initiating auth / token gating
    */
   async auth({
-    chain = Chains.ETH,
+    chain = ChainTypes.ETH,
     walletAddress,
     signature,
     requirements,
@@ -212,7 +221,7 @@ export class Picket {
    * Function for initiating auth / token gating
    */
   async tokenOwnership({
-    chain = Chains.ETH,
+    chain = ChainTypes.ETH,
     walletAddress,
     tokenIds,
     contractAddress,
@@ -223,14 +232,15 @@ export class Picket {
         "walletAddress parameter is required - see docs for reference."
       );
     }
-    if (chain === Chains.ETH && !contractAddress) {
+    if (chain === ChainTypes.SOL && !tokenIds) {
       throw new Error(
-        `contractAddress parameter is required for ${Chains.ETH}- see docs for reference.`
+        `tokenIds parameter is required for ${ChainTypes.SOL} - see docs for reference.`
       );
     }
-    if (chain === Chains.SOL && !tokenIds) {
+
+    if (chain !== ChainTypes.SOL && !contractAddress) {
       throw new Error(
-        `tokenIds parameter is required for ${Chains.SOL} - see docs for reference.`
+        `contractAddress parameter is required for EVM chains - see docs for reference.`
       );
     }
 
@@ -250,6 +260,46 @@ export class Picket {
     }
 
     return data as TokenOwnershipResponse;
+  }
+
+  /**
+   * chainInfo
+   * Function for retrieving chain information
+   */
+  async chainInfo(chain: string): Promise<ChainInfo> {
+    const url = `${this.baseURL}/chains/${chain}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: this.#defaultHeaders(),
+    });
+    const data = await res.json();
+
+    // reject any error code > 201
+    if (res.status > 201) {
+      return Promise.reject(data as ErrorResponse);
+    }
+
+    return data as ChainInfo;
+  }
+
+  /**
+   * chains
+   * Function for retrieving information on supported chains
+   */
+  async chains(): Promise<ChainInfo[]> {
+    const url = `${this.baseURL}/chains`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: this.#defaultHeaders(),
+    });
+    const data = await res.json();
+
+    // reject any error code > 201
+    if (res.status > 201) {
+      return Promise.reject(data as ErrorResponse);
+    }
+
+    return data.data as ChainInfo[];
   }
 }
 
