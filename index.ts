@@ -232,14 +232,15 @@ export class Picket {
         "walletAddress parameter is required - see docs for reference."
       );
     }
-    if (chain === ChainTypes.ETH && !contractAddress) {
-      throw new Error(
-        `contractAddress parameter is required for ${ChainTypes.ETH}- see docs for reference.`
-      );
-    }
     if (chain === ChainTypes.SOL && !tokenIds) {
       throw new Error(
         `tokenIds parameter is required for ${ChainTypes.SOL} - see docs for reference.`
+      );
+    }
+
+    if (chain !== ChainTypes.SOL && !contractAddress) {
+      throw new Error(
+        `contractAddress parameter is required for EVM chains - see docs for reference.`
       );
     }
 
