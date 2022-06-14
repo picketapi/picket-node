@@ -31,6 +31,19 @@ export interface NonceRequest {
 
 export interface NonceResponse {
   nonce: string;
+  statement: string;
+}
+
+// SigningMessageContext is the minumum additional fields for SIWE that are generated client-side
+// and needed to be passed to the server to regenerate the signed message.
+// For more details, see https://docs.login.xyz/general-information/siwe-overview/eip-4361#message-field-descriptions
+export interface SigningMessageContext {
+  // Exlcude version because it is always 1
+  // version: 1;
+  domain: string;
+  uri: string;
+  chainId: number;
+  issuedAt: string;
 }
 
 export interface AuthRequirements {
@@ -44,6 +57,7 @@ export interface AuthRequest {
   walletAddress: string;
   signature: string;
   requirements?: AuthRequirements;
+  context?: SigningMessageContext;
 }
 
 export interface TokenOwnershipRequest {
@@ -149,6 +163,7 @@ export class Picket {
     walletAddress,
     signature,
     requirements,
+    context,
   }: AuthRequest): Promise<AuthResponse> {
     if (!walletAddress) {
       throw new Error(
@@ -170,6 +185,7 @@ export class Picket {
         walletAddress,
         signature,
         requirements,
+        context,
       }),
     };
 
