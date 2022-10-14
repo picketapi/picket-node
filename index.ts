@@ -24,14 +24,21 @@ export type ChainInfo = {
   authorizationSupported: boolean;
 };
 
+export enum SigningMessageFormat {
+  SIMPLE = "simple",
+  SIWE = "siwe",
+}
+
 export interface NonceRequest {
   chain: string;
   walletAddress: string;
+  locale?: string;
 }
 
 export interface NonceResponse {
   nonce: string;
   statement: string;
+  format: `${SigningMessageFormat}`;
 }
 
 // SigningMessageContext is the minumum additional fields for SIWE that are generated client-side
@@ -44,12 +51,19 @@ export interface SigningMessageContext {
   uri: string;
   chainId: number;
   issuedAt: string;
+  chainType: ChainType;
+  // add locale to the context even though it is not part of the SIWE spec
+  locale?: string;
 }
 
 export interface AuthRequirements {
   contractAddress?: string;
-  tokenIds?: string[];
   minTokenBalance?: number | string;
+  allowedWallets?: string[];
+  // Solana specific auth requirement options
+  tokenIds?: string[];
+  collection?: string;
+  creatorAddress?: string;
 }
 
 export interface AuthRequest {
@@ -74,6 +88,14 @@ export interface TokenOwnershipResponse {
   tokenBalance: string;
 }
 
+// TokenRequirementsBalances maps type of requirements to balances for the ID/address/name
+export type TokenRequirementsBalances = {
+  contractAddress?: Record<string, string>;
+  collection?: Record<string, string>;
+  tokenIds?: Record<string, string>;
+  creatorAddress?: Record<string, string>;
+};
+
 export interface AuthenticatedUser {
   chain: string;
   walletAddress: string;
@@ -81,6 +103,7 @@ export interface AuthenticatedUser {
   contractAddress?: string;
   tokenIds?: string;
   tokenBalance?: string;
+  tokenBalances?: TokenRequirementsBalances;
 }
 
 export interface AuthResponse {
@@ -102,6 +125,9 @@ export interface AccessTokenPayload extends AuthenticatedUser {
   tid: string;
 }
 
+const isSuccessfulStatusCode = (status: number) =>
+  status >= 200 && status < 300;
+
 export class Picket {
   baseURL = BASE_API_URL;
   #apiKey;
@@ -117,7 +143,7 @@ export class Picket {
     const base64SecretKey = Buffer.from(this.#apiKey).toString("base64");
 
     return {
-      "User-Agent": "picket-node/0.0.5",
+      "User-Agent": "picket-node/0.0.10",
       "Content-Type": "application/json",
       Authorization: `Basic ${base64SecretKey}`,
     };
@@ -147,7 +173,7 @@ export class Picket {
     const data = await res.json();
 
     // reject any error code > 201
-    if (res.status > 201) {
+    if (!isSuccessfulStatusCode(res.status)) {
       return Promise.reject(data);
     }
 
@@ -193,11 +219,57 @@ export class Picket {
     const data = await res.json();
 
     // reject any error code > 201
-    if (res.status > 201) {
+    if (!isSuccessfulStatusCode(res.status)) {
       return Promise.reject(data as ErrorResponse);
     }
 
     return data as AuthResponse;
+  }
+
+  /**
+   * authz
+   * Function for checking if a given user is authorized (aka meets the requirements)
+   */
+  async authz({
+    accessToken,
+    requirements,
+    revalidate = false,
+  }: {
+    accessToken: string;
+    requirements: AuthRequirements;
+    revalidate?: boolean;
+  }): Promise<AuthState> {
+    if (!accessToken) {
+      throw new Error(
+        "accessToken parameter is required - see docs for reference."
+      );
+    }
+    if (!requirements) {
+      throw new Error(
+        "requirements parameter is required - see docs for reference."
+      );
+    }
+
+    const url = `${this.baseURL}/authz`;
+    const reqOptions = {
+      method: "POST",
+      headers: this.#defaultHeaders(),
+      body: JSON.stringify({
+        accessToken,
+        requirements,
+        revalidate,
+      }),
+    };
+
+    const res = await fetch(url, reqOptions);
+    const data = await res.json();
+
+    // Reject non-successful responses
+    if (!isSuccessfulStatusCode(res.status)) {
+      return Promise.reject(data as ErrorResponse);
+    }
+
+    return data as AuthState;
   }
 
   /**
@@ -225,7 +297,7 @@ export class Picket {
     const data = await res.json();
 
     // reject any error code > 201
-    if (res.status > 201) {
+    if (!isSuccessfulStatusCode(res.status)) {
       return Promise.reject(data as ErrorResponse);
     }
 
@@ -271,7 +343,7 @@ export class Picket {
     const data = await res.json();
 
     // reject any error code > 201
-    if (res.status > 201) {
+    if (!isSuccessfulStatusCode(res.status)) {
       return Promise.reject(data as ErrorResponse);
     }
 
@@ -291,7 +363,7 @@ export class Picket {
     const data = await res.json();
 
     // reject any error code > 201
-    if (res.status > 201) {
+    if (!isSuccessfulStatusCode(res.status)) {
       return Promise.reject(data as ErrorResponse);
     }
 
@@ -311,7 +383,7 @@ export class Picket {
     const data = await res.json();
 
     // reject any error code > 201
-    if (res.status > 201) {
+    if (!isSuccessfulStatusCode(res.status)) {
       return Promise.reject(data as ErrorResponse);
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "@picketapi/picket-node",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "NodeJS client for the Picket API",
   "source": "index.ts",
   "types": "dist/index.d.ts",
