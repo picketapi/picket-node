@@ -118,7 +118,7 @@ export interface AuthState {
 
 export interface AccessTokenPayload extends AuthenticatedUser {
   iat: number;
-  ext: number;
+  exp: number;
   iss: string;
   sub: string;
   aud: string;
